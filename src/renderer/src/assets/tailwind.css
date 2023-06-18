@@ -1,0 +1,41 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@layer base {
+  .cus-scrollbars {
+    @apply scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent;
+  }
+}
+
+.cm-scroller {
+  @apply cus-scrollbars;
+}
+
+/* Customizing the codeMirror theme*/
+
+.cm-editor,
+.cm-gutter,
+.cm-editor.cm-focused {
+  @apply dark:bg-gray-800;
+}
+
+.cm-activeLine.cm-line,
+.cm-gutterElement.cm-activeLineGutter {
+  @apply dark:bg-gray-700 bg-gray-300 dark:bg-opacity-30 bg-opacity-30;
+}
+
+.cm-selectionBackground {
+  @apply dark:!bg-blue-900;
+}
+
+/* Customizing the rules collapse*/
+
+.ReactCollapse--collapse {
+  transition: height 500ms;
+  @apply dark:bg-gray-700 bg-gray-100;
+}
+
+.ReactCollapse--content {
+  @apply p-2 text-xs dark:text-gray-400 text-gray-600;
+}
