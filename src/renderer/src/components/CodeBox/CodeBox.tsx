@@ -6,20 +6,50 @@ import defaultCode from '../../assets/defaultCode'
 import BtnBar from './BtnBar'
 import SplitPane, { Pane } from 'split-pane-react'
 import 'split-pane-react/esm/themes/default.css'
-import { ReactNode, useState } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
 import Terminal from './Terminal'
+import { SudokuHandler } from '@renderer/models/SudokuHandler'
+import { Extension } from '@codemirror/state'
+import { EditorView } from '@codemirror/view'
 
 interface CodeBoxProps {
   onFocusChange: React.Dispatch<React.SetStateAction<boolean>>
   darkModeEnabled: boolean
+  setSudokuHandler: React.Dispatch<React.SetStateAction<SudokuHandler | undefined>>
 }
 
 function CodeBox(props: CodeBoxProps): JSX.Element {
-  const { onFocusChange, darkModeEnabled } = props
+  const { onFocusChange, darkModeEnabled, setSudokuHandler } = props
   const [paneSizes, setPaneSizes] = useState([80, 20])
   const [codeContent, setCodeContent] = useState(defaultCode)
   const [terminalContent, setTerminalContent] = useState('')
+  const [compileSuccess, setCompileSuccess] = useState(false)
+  const [fontSize, setFontSize] = useState(14)
+
+  const FontSizeTheme = EditorView.theme({
+    '&': {
+      fontSize: `${fontSize}px`
+    }
+  })
+
+  const FontSizeThemeExtension: Extension = [FontSizeTheme]
   const theme = darkModeEnabled ? nord : githubLight
+
+  useEffect(() => {
+    const options = { passive: false }
+    window.addEventListener('wheel', handleScroll, options)
+
+    return () => {
+      window.removeEventListener('wheel', handleScroll)
+    }
+  }, [])
+
+  function handleScroll(event: WheelEvent): void {
+    if (event.ctrlKey) {
+      event.preventDefault() // Prevents the page from zooming
+      setFontSize((oldFontSize) => oldFontSize + Math.sign(event.deltaY) * -1)
+    }
+  }
 
   return (
     <>
@@ -27,6 +57,8 @@ function CodeBox(props: CodeBoxProps): JSX.Element {
         codeContent={codeContent}
         setCodeContent={setCodeContent}
         setTerminalContent={setTerminalContent}
+        setCompileSuccess={setCompileSuccess}
+        setSudokuHandler={setSudokuHandler}
       />
       <SplitPane
         split="horizontal"
@@ -40,14 +72,14 @@ function CodeBox(props: CodeBoxProps): JSX.Element {
             height="100%"
             theme={theme}
             value={codeContent}
-            extensions={[langs.javascript()]}
+            extensions={[langs.javascript(), FontSizeThemeExtension]}
             onChange={(content): void => setCodeContent(content)}
             onFocus={(): void => onFocusChange(true)}
             onBlur={(): void => onFocusChange(false)}
           />
         </Pane>
         <Pane minSize={100}>
-          <Terminal content={terminalContent} />
+          <Terminal content={terminalContent} compileSuccess={compileSuccess} />
         </Pane>
       </SplitPane>
     </>

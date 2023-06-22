@@ -22,16 +22,11 @@ constraint standardSudoku () {
     }
 }
 
-@verify (27, 2:1=>3:3);
-@explanation ('All cells in a cage must be unique and sum to the small digit in the corner');
-constraint killerCage (Number expectedSum, Cell[] cells) {
-    apply uniqueCollection(cells);
-    assert Sum(cells) == expectedSum involves [cells] msg 'Killer cage did not sum to expected sum';
-}
-
-
-
-
-
+# @verify (27, 2:1=>3:3);
+# @explanation ('All cells in a cage must be unique and sum to the small digit in the corner');
+# constraint killerCage (Number expectedSum, Cell[] cells) {
+#     apply uniqueCollection(cells);
+#     assert Sum(cells) == expectedSum involves [cells] msg 'Killer cage did not sum to expected sum';
+# }
 `
 export default defaultCode

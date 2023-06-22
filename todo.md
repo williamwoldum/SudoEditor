@@ -1,20 +1,16 @@
 # codebox
 
-[] Add Run, view compilation
-[] Write own Lezer grammar
-[] Zoom/scaling
-[] Add scrollbars on terminal
-[] Save content in localstorage
 [] Add prompt on successful compilation
+[] Write own Lezer grammar
+[] Clear change history on file opened
+[] Add prompt on successful save
 
 # gridbox
 
-[] Fill rules box
-[] Fill constraint box
+[] Fix constraint box scroll
 [] Add scrollbars on resizing
 [] Use cell refs for selection
 [] Torturial/guide
-[] Add remove overlay
 [] Fix darkmode localstorage
 
 # window

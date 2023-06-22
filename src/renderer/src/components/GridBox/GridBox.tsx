@@ -1,31 +1,53 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Btn from '../shared/Btn'
 import Grid from './Grid'
 import { Collapse } from 'react-collapse'
+import { SudokuHandler, Assertion } from '@renderer/models/SudokuHandler'
+import ConstraintBox from './ConstraintBox'
+import * as _ from 'lodash'
 
 interface GridBoxProps {
   codeInFocus: boolean
   darkModeEnabled: boolean
   toggleDarkMode: (e: React.MouseEvent) => void
+  sudokuHandler: SudokuHandler | undefined
 }
 
 function GridBox(props: GridBoxProps): JSX.Element {
-  const { codeInFocus, darkModeEnabled, toggleDarkMode } = props
+  const { codeInFocus, darkModeEnabled, toggleDarkMode, sudokuHandler } = props
+  const [rules, setRules] = useState({})
+  const [ruleBreaks, setRuleBreaks] = useState<Record<string, Assertion[]>>({})
+  const [runtimeErrors, setRuntimeErrors] = useState<Record<string, string[]>>({})
   const [isOpened, setIsOpened] = useState(false)
   const [resetFunc, setResetFunc] = useState<() => void>(() => () => {})
+  const [setSelectedFunc, setSetSelectedFunc] = useState<(newSelection: number[]) => void>(
+    () => () => {}
+  )
   const [setOverlayFunc, setSetOverlayFunc] = useState<
     (e: React.ChangeEvent<HTMLInputElement>) => void
   >(() => () => {})
+  const [removeOverlayFunc, setRemoveOverlayFunc] = useState<() => void>(() => () => {})
+  const [removeOverlayState, setRemoveOverlayState] = useState(false)
   const overlayInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setRules(sudokuHandler?.getExplanations() ?? {})
+  }, [sudokuHandler])
 
   return (
     <>
       <div className="h-full flex flex-col justify-center items-center overflow-y-auto min-w-[500px]  min-h-[700px]">
         <div className="space-y-2 w-min">
           <Collapse isOpened={isOpened}>
-            <p>Paragraph of text</p>
-            <p>Another paragraph is also OK</p>
-            <p>Images and any other content are ok too</p>
+            <div className="space-y-2">
+              {Object.keys(rules).map((key, idx) => (
+                <p key={idx}>
+                  <span className="font-bold">{_.startCase(key.slice(1))}</span>
+                  <br />
+                  {rules[key]}
+                </p>
+              ))}
+            </div>
           </Collapse>
 
           <div className="flex h-4 mb-4 w-full justify-between">
@@ -43,7 +65,12 @@ function GridBox(props: GridBoxProps): JSX.Element {
                 </label>
               </div>
               <Btn msg="Clear" onClick={(): void => resetFunc()} />
-              <Btn msg="Add overlay" onClick={(): void => overlayInputRef?.current?.click()} />
+              {removeOverlayState ? (
+                <Btn msg="Remove overlay" onClick={removeOverlayFunc} />
+              ) : (
+                <Btn msg="Add overlay" onClick={(): void => overlayInputRef?.current?.click()} />
+              )}
+
               <input
                 ref={overlayInputRef}
                 type="file"
@@ -58,12 +85,20 @@ function GridBox(props: GridBoxProps): JSX.Element {
             codeInFocus={codeInFocus}
             darkModeEnabled={darkModeEnabled}
             setResetFunc={setResetFunc}
+            setSetSelectedFunc={setSetSelectedFunc}
             setSetOverlayFunc={setSetOverlayFunc}
+            setRemoveOverlayFunc={setRemoveOverlayFunc}
+            setRemoveOverlayState={setRemoveOverlayState}
+            sudokuHandler={sudokuHandler}
+            setRuleBreaks={setRuleBreaks}
+            setRuntimeErrors={setRuntimeErrors}
           />
 
-          <div className="w-full h-28 bg-gray-100 dark:bg-gray-700 overflow-y-scroll p-2 space-y-1 cus-scrollbars">
-            <p className="text-xs text-gray-500 italic">No constraints broken</p>
-          </div>
+          <ConstraintBox
+            runtimeErrors={runtimeErrors}
+            ruleBreaks={ruleBreaks}
+            setSelectedFunc={setSelectedFunc}
+          />
         </div>
       </div>
     </>

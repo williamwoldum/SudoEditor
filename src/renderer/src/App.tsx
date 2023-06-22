@@ -1,13 +1,10 @@
-import CodeBox from './components/CodeBox/CodeBox'
-import GridBox from './components/GridBox/GridBox'
-import { ReactNode, useEffect, useState } from 'react'
-import SplitPane, { Pane } from 'split-pane-react'
-import 'split-pane-react/esm/themes/default.css'
+import { Route, Routes, BrowserRouter } from 'react-router-dom'
+import Home from './components/Pages/Home'
+import ViewOutput from './components/Pages/ViewOutput'
+import { useEffect, useState } from 'react'
 
 function App(): JSX.Element {
-  const [darkModeEnabled, setDarkModeEnabled] = useState(localStorage.darkModeEnabled)
-  const [codeInFocus, setCodeInFocus] = useState(false)
-  const [paneSizes, setPaneSizes] = useState([50, 50])
+  const [darkModeEnabled, setDarkModeEnabled] = useState(localStorage.darkModeEnabled ?? true)
 
   useEffect(() => {
     const root = window.document.documentElement
@@ -25,28 +22,17 @@ function App(): JSX.Element {
   }
 
   return (
-    <>
-      {/* <div className="h-screen w-24 absolute left-1/2 top-0 bg-red-400">asd</div> */}
-      <div className="h-screen dark:bg-gray-800">
-        <SplitPane
-          split="vertical"
-          sizes={paneSizes}
-          onChange={setPaneSizes}
-          sashRender={(): ReactNode => undefined}
-        >
-          <Pane minSize={300} className="border-r dark:border-r-gray-600 border-r-gray-200">
-            <CodeBox onFocusChange={setCodeInFocus} darkModeEnabled={darkModeEnabled} />
-          </Pane>
-          <Pane minSize={100}>
-            <GridBox
-              codeInFocus={codeInFocus}
-              darkModeEnabled={darkModeEnabled}
-              toggleDarkMode={toggleDarkMode}
-            />
-          </Pane>
-        </SplitPane>
-      </div>
-    </>
+    <div className="h-screen">
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/"
+            element={<Home toggleDarkMode={toggleDarkMode} darkModeEnabled={darkModeEnabled} />}
+          />
+          <Route path="/view-output" element={<ViewOutput darkModeEnabled={darkModeEnabled} />} />
+        </Routes>
+      </BrowserRouter>
+    </div>
   )
 }
 

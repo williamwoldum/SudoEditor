@@ -5,14 +5,13 @@ interface style {
 
 function convertAnsiToHtml(ansiContent: string): JSX.Element {
   const ansiInfo = ansiContent.split('\u001b[0m').map((span) => {
-    const contentArr = span.split(/\033\[.*m/)
-    const content = contentArr[1] ?? contentArr[0]
+    const content = span.replaceAll(/\033\[.*?m/g, '')
+
     const ansiModifiers = Array.from(span.matchAll(/\033\[(.*?)m/g), (match) => match[1])
     const styles: style[] = ansiModifiers.map((modifier) => ({
       code: modifier?.split(';')[0] ?? '',
       args: modifier?.split(';').slice(1) ?? []
     }))
-
     return { styles, content }
   })
 
@@ -60,7 +59,7 @@ function AnsiToHtml(props: AnsiToHtmlProps): JSX.Element {
   const { ansiContent } = props
 
   return (
-    <div className="overflow-y-auto overflow-x-auto p-3 h-full">
+    <div className="overflow-y-auto overflow-x-auto p-3 h-full cus-scrollbars">
       {convertAnsiToHtml(ansiContent)}
     </div>
   )

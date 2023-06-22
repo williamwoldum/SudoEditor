@@ -1,8 +1,14 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
-const api = {}
+const api = {
+  readFile: async (filePath): Promise<string | Buffer> => ipcRenderer.invoke('read-file', filePath),
+  writeFile: async (filePath, content): Promise<void> =>
+    ipcRenderer.invoke('write-file', filePath, content),
+  execSync: async (command): Promise<Buffer> => ipcRenderer.invoke('exec-sync', command),
+  viewOutput: async (): Promise<void> => ipcRenderer.invoke('view-output')
+}
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise

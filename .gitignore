@@ -2,3 +2,6 @@ node_modules
 dist
 out
 *.log*
+temp_compiles/compiled.js
+temp_compiles/toBeCompiled.sudocode
+temp_compiles/testCompiled.js

@@ -1,18 +1,31 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import Btn from '../shared/Btn'
+import { SudokuHandler, CompilationExport } from '@renderer/models/SudokuHandler'
 
-const fs = window.require('fs').promises
-const cp = window.require('child_process')
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const api: any = window.api
 
 interface BtnBarProps {
   codeContent: string
   setCodeContent: (content: string) => void
   setTerminalContent: React.Dispatch<React.SetStateAction<string>>
+  setCompileSuccess: React.Dispatch<React.SetStateAction<boolean>>
+  setSudokuHandler: React.Dispatch<React.SetStateAction<SudokuHandler | undefined>>
 }
 
 function BtnBar(props: BtnBarProps): JSX.Element {
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { codeContent, setCodeContent, setTerminalContent } = props
+  const { codeContent, setCodeContent, setTerminalContent, setCompileSuccess, setSudokuHandler } =
+    props
+
+  useEffect(() => {
+    loadDefaultHandler()
+  }, [])
+
+  async function loadDefaultHandler(): Promise<void> {
+    const newSudokuHandler = await getSudokuHandler()
+    setSudokuHandler(newSudokuHandler)
+  }
 
   function handleSave(content: string): void {
     const element = document.createElement('a')
@@ -37,7 +50,7 @@ function BtnBar(props: BtnBarProps): JSX.Element {
     const file = e.target.files?.[0]
     if (file) {
       try {
-        const content = await fs.readFile(file.path, 'utf8')
+        const content = await api.readFile(file.path)
         setCodeContent(content)
         setTerminalContent(`Successfully opened: ${file.path}`)
         e.target.value = ''
@@ -51,21 +64,61 @@ function BtnBar(props: BtnBarProps): JSX.Element {
   }
 
   async function handleCompile(): Promise<void> {
+    setTerminalContent('')
     try {
-      const filePath = 'temp_compiles/input.sudocode'
-      const command = `java -jar resources/SdkrCompiler.jar -i ${filePath} -o temp_compiles/compiled.js`
-
-      await fs.writeFile(filePath, codeContent)
-      const resultBuffer = await cp.execSync(command)
-      const stdout = String.fromCharCode.apply(null, resultBuffer)
-      setTerminalContent(stdout)
-      console.log(stdout)
+      compile(true)
     } catch (error) {
       if (error instanceof Error) {
+        setCompileSuccess(false)
         setTerminalContent(error.message)
         console.log(`Error: ${error.message}`)
       }
     }
+  }
+
+  async function handleRun(): Promise<void> {
+    setTerminalContent('')
+    try {
+      compile(false)
+      const newSudokuHandler = await getSudokuHandler()
+      setSudokuHandler(newSudokuHandler)
+    } catch (error) {
+      if (error instanceof Error) {
+        setCompileSuccess(false)
+        setTerminalContent(error.message)
+        console.log(`Error: ${error.message}`)
+      }
+    }
+  }
+
+  async function compile(justCheckForCompilation: boolean): Promise<void> {
+    justCheckForCompilation
+
+    const inputPath = 'temp_compiles/toBeCompiled.sudocode'
+    const outputPath = justCheckForCompilation
+      ? 'temp_compiles/testCompiled.js'
+      : 'temp_compiles/compiled.js'
+    const command = `java -jar resources/SdkrCompiler.jar -i ${inputPath} -o ${outputPath}`
+
+    await api.writeFile(inputPath, codeContent)
+
+    const resultBuffer = await api.execSync(command)
+    const stdout = String.fromCharCode.apply(null, resultBuffer)
+
+    if (stdout === '') {
+      setTerminalContent('Compiled successfully')
+      setCompileSuccess(true)
+    } else {
+      setTerminalContent(stdout)
+      setCompileSuccess(false)
+    }
+  }
+
+  async function getSudokuHandler(): Promise<SudokuHandler> {
+    const module: CompilationExport = await import('../../../../../temp_compiles/compiled.js')
+    const handlerClass = module.Sudoku
+    // @ts-ignore needs to be looked at
+    return new handlerClass()
   }
 
   return (
@@ -84,7 +137,7 @@ function BtnBar(props: BtnBarProps): JSX.Element {
         </div>
         <div className="space-x-1">
           <Btn msg="Compile" onClick={handleCompile} />
-          <Btn msg="Run" />
+          <Btn msg="Run" onClick={handleRun} />
         </div>
       </div>
     </>

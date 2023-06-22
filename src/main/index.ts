@@ -1,22 +1,22 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import * as fs from 'fs'
+import * as cp from 'child_process'
 
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 1200,
-    height: 700,
+    height: 800,
     show: false,
     icon: join(__dirname, '../../resources/favicon.png'),
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-      nodeIntegration: true,
-      contextIsolation: false
+      sandbox: false
     }
   })
 
@@ -52,6 +52,11 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  const filePath = 'temp_compiles/defaultSudoku.sudocode'
+  const command = `java -jar resources/SdkrCompiler.jar -i ${filePath} -o temp_compiles/compiled.js`
+
+  cp.execSync(command)
+
   createWindow()
 
   app.on('activate', function () {
@@ -72,3 +77,45 @@ app.on('window-all-closed', () => {
 
 // In this file you can include the rest of your app"s specific main process
 // code. You can also put them in separate files and require them here.
+
+ipcMain.handle('read-file', async (_event, filePath) => {
+  return fs.promises.readFile(filePath, 'utf8')
+})
+
+ipcMain.handle('write-file', async (_event, filePath, content) => {
+  return fs.promises.writeFile(filePath, content)
+})
+
+ipcMain.handle('exec-sync', async (_event, command) => {
+  return cp.execSync(command)
+})
+
+ipcMain.handle('view-output', async () => {
+  const win = new BrowserWindow({
+    height: 600,
+    width: 800,
+    icon: join(__dirname, '../../resources/favicon.png'),
+    autoHideMenuBar: true,
+    ...(process.platform === 'linux' ? { icon } : {}),
+    title: 'Compiled output',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  win.on('ready-to-show', () => {
+    win.show()
+  })
+
+  win.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url)
+    return { action: 'deny' }
+  })
+
+  // win.loadURL(join(__dirname, '../../temp_compiles/compiled.js'))
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    win.loadURL(process.env['ELECTRON_RENDERER_URL'] + '/view-output')
+  }
+})

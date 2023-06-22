@@ -2,6 +2,7 @@ import Sketch from 'react-p5'
 import p5Types from 'p5'
 import GridSudoku from '@renderer/models/GridSudoku'
 import { useEffect, useRef } from 'react'
+import { SudokuHandler, ConstraintsResult, Assertion } from '@renderer/models/SudokuHandler'
 
 const tileSize = 46
 const colors = {
@@ -17,30 +18,57 @@ const colors = {
   gray700: '#374151',
   gray800: '#1f2937'
 }
+
 const sudoku = GridSudoku.getEmpty()
-let overlayImg: p5Types.Image
+let overlayImg: p5Types.Image | undefined
 
 interface GridProps {
   codeInFocus: boolean
   darkModeEnabled: boolean
   setResetFunc: React.Dispatch<React.SetStateAction<() => void>>
+  setSetSelectedFunc: React.Dispatch<React.SetStateAction<(newSelection: number[]) => void>>
   setSetOverlayFunc: React.Dispatch<
     React.SetStateAction<(e: React.ChangeEvent<HTMLInputElement>) => void>
   >
+  setRemoveOverlayFunc: React.Dispatch<React.SetStateAction<() => void>>
+  setRemoveOverlayState: React.Dispatch<React.SetStateAction<boolean>>
+  sudokuHandler: SudokuHandler | undefined
+  setRuleBreaks: React.Dispatch<React.SetStateAction<Record<string, Assertion[]>>>
+  setRuntimeErrors: React.Dispatch<React.SetStateAction<Record<string, string[]>>>
 }
 
 function Grid(props: GridProps): JSX.Element {
-  const { codeInFocus, darkModeEnabled, setResetFunc, setSetOverlayFunc } = props
+  const {
+    codeInFocus,
+    darkModeEnabled,
+    setResetFunc,
+    setSetSelectedFunc,
+    setSetOverlayFunc,
+    setRemoveOverlayFunc,
+    setRemoveOverlayState,
+    sudokuHandler,
+    setRuleBreaks,
+    setRuntimeErrors
+  } = props
   const sketchRef = useRef<p5Types | null>(null)
 
   useEffect(() => {
     setResetFunc(() => () => reset())
+    setSetSelectedFunc(() => (newSelection: number[]) => setSelected(newSelection))
     setSetOverlayFunc(() => (e: React.ChangeEvent<HTMLInputElement>) => setOverlay(e))
+    setRemoveOverlayFunc(() => () => removeOverlay())
+    checkConstraints()
     sketchRef.current?.redraw()
-  }, [darkModeEnabled])
+  }, [darkModeEnabled, sudokuHandler])
 
   const reset = (): void => {
     sudoku.reset()
+    checkConstraints()
+    sketchRef.current?.redraw()
+  }
+
+  const setSelected = (newSelection: number[]): void => {
+    sudoku.selected = [...newSelection]
     sketchRef.current?.redraw()
   }
 
@@ -50,33 +78,44 @@ function Grid(props: GridProps): JSX.Element {
     if (file.type === 'image/png' || file.type === 'image/jpeg') {
       const urlOfImageFile = URL.createObjectURL(file)
       overlayImg = sketchRef.current!.loadImage(urlOfImageFile, () => {
+        overlayImg?.resize(500, 500)
+        e.target.value = ''
         formatOverlay()
         sketchRef.current?.redraw()
+        setRemoveOverlayState(true)
       })
     }
   }
 
+  const removeOverlay = (): void => {
+    overlayImg = undefined
+    sketchRef.current?.redraw()
+    setRemoveOverlayState(false)
+  }
+
   const formatOverlay = (): void => {
-    overlayImg.loadPixels()
+    if (overlayImg !== undefined) {
+      overlayImg.loadPixels()
 
-    for (let y = 0; y < overlayImg.height; y++) {
-      for (let x = 0; x < overlayImg.width; x++) {
-        const index = (y * overlayImg.width + x) * 4
+      for (let y = 0; y < overlayImg.height; y++) {
+        for (let x = 0; x < overlayImg.width; x++) {
+          const index = (y * overlayImg.width + x) * 4
 
-        const r = overlayImg.pixels[index + 0]
-        const g = overlayImg.pixels[index + 1]
-        const b = overlayImg.pixels[index + 2]
+          const r = overlayImg.pixels[index + 0]
+          const g = overlayImg.pixels[index + 1]
+          const b = overlayImg.pixels[index + 2]
 
-        if (r + g + b > 700) {
-          overlayImg.pixels[index + 3] = 0
-        } else {
-          overlayImg.pixels[index + 0] = 156
-          overlayImg.pixels[index + 1] = 163
-          overlayImg.pixels[index + 2] = 175
+          if (r + g + b > 700) {
+            overlayImg.pixels[index + 3] = 0
+          } else {
+            overlayImg.pixels[index + 0] = 255
+            overlayImg.pixels[index + 1] = 255
+            overlayImg.pixels[index + 2] = 255
+          }
         }
       }
+      overlayImg.updatePixels()
     }
-    overlayImg.updatePixels()
   }
 
   const setup = (p5: p5Types, canvasParentRef: Element): void => {
@@ -89,14 +128,15 @@ function Grid(props: GridProps): JSX.Element {
 
   const draw = (p5: p5Types): void => {
     p5.background(darkModeEnabled ? p5.color(colors.gray800) : p5.color(255))
-    drawGrid(p5)
     drawOverlay(p5)
+    drawGrid(p5)
     drawDigits(p5)
     drawSelection(p5)
   }
 
   const drawOverlay = (p5: p5Types): void => {
     if (overlayImg !== undefined) {
+      darkModeEnabled ? p5.tint(p5.color(colors.gray700)) : p5.tint(p5.color(colors.gray300))
       p5.image(overlayImg, 0, 0, p5.width, p5.height)
     }
   }
@@ -104,10 +144,44 @@ function Grid(props: GridProps): JSX.Element {
   const placeDigit = (idx: number, digit: number): void => {
     if (!sudoku.cells[idx].isLocked) {
       sudoku.cells[idx].value = digit
+      checkConstraints()
+    }
+  }
+
+  const checkConstraints = (): void => {
+    if (sudokuHandler) {
+      for (const cell of sudoku.cells) {
+        cell.isBroken = false
+      }
+
+      const result: ConstraintsResult = sudokuHandler?.checkAllConstraints(sudoku.getNums())
+
+      const failedResults: Record<string, Assertion[]> = {}
+      for (const constraint of Object.keys(result)) {
+        for (const assertion of result[constraint].results) {
+          if (assertion.passed === false) {
+            const currentFails = failedResults[constraint] ?? []
+            failedResults[constraint] = [...currentFails, assertion]
+            for (const cell of assertion.cells) {
+              const idx = (cell.row - 1) * 9 + (cell.col - 1)
+              sudoku.cells[idx].isBroken = true
+            }
+          }
+        }
+      }
+
+      const errors: Record<string, string[]> = {}
+      for (const rule of Object.keys(result)) {
+        if (result[rule].errors.length > 0) errors[rule] = result[rule].errors
+      }
+
+      setRuleBreaks(failedResults)
+      setRuntimeErrors(errors)
     }
   }
 
   const drawGrid = (p5: p5Types): void => {
+    if (overlayImg !== undefined) return
     p5.stroke(darkModeEnabled ? p5.color(colors.gray700) : p5.color(colors.gray300))
     for (let i = 0; i < 10; i++) {
       p5.strokeWeight(i % 3 === 0 ? 2 : 1)
@@ -159,7 +233,7 @@ function Grid(props: GridProps): JSX.Element {
       p5.square(cell.col * tileSize + 1, cell.row * tileSize + 1, tileSize)
     })
 
-    const strokeWeight = 2
+    const strokeWeight = 3
 
     p5.strokeCap(p5.SQUARE)
     p5.strokeWeight(strokeWeight)
