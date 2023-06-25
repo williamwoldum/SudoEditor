@@ -1,6 +1,10 @@
 # sudoeditor
 
-An Electron application with React and TypeScript
+A SudoCode IDE
+Check out the SudoCode compiler [here](https://github.com/williamwoldum/SdkrCompiler) 
+
+![Skærmbillede 2023-06-25 221439](https://github.com/williamwoldum/SudoEditor/assets/41169797/c3ff9e62-6305-47fb-b4b9-886bd0dc68ad)
+
 
 ## Recommended IDE Setup
 
