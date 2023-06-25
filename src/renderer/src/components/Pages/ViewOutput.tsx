@@ -49,7 +49,7 @@ function ViewOutput(props: ViewOutputProps): JSX.Element {
 
   async function getCompiledOutput(): Promise<void> {
     const content = await api.readFile(
-      'C:/Users/William/Documents/GitHub/SudoEditor/temp_compiles/compiled.js'
+      './temp_compiles/compiled.js'
     )
     try {
       const formattedCode = beautifier(content, { indent_size: 2 })
