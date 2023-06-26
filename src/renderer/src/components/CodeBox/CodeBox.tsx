@@ -9,8 +9,8 @@ import 'split-pane-react/esm/themes/default.css'
 import { ReactNode, useEffect, useState } from 'react'
 import Terminal from './Terminal'
 import { SudokuHandler } from '@renderer/models/SudokuHandler'
-import { Extension } from '@codemirror/state'
-import { EditorView } from '@codemirror/view'
+import customCommentKey from '@renderer/functions/codeMirrorCommentExt'
+import { getFontSizeThemeExt, handleScroll } from '@renderer/functions/codeMirrorScrollToZoomExt'
 
 interface CodeBoxProps {
   onFocusChange: React.Dispatch<React.SetStateAction<boolean>>
@@ -26,30 +26,16 @@ function CodeBox(props: CodeBoxProps): JSX.Element {
   const [compileSuccess, setCompileSuccess] = useState(false)
   const [fontSize, setFontSize] = useState(14)
 
-  const FontSizeTheme = EditorView.theme({
-    '&': {
-      fontSize: `${fontSize}px`
-    }
-  })
-
-  const FontSizeThemeExtension: Extension = [FontSizeTheme]
   const theme = darkModeEnabled ? nord : githubLight
 
   useEffect(() => {
     const options = { passive: false }
-    window.addEventListener('wheel', handleScroll, options)
+    window.addEventListener('wheel', (e) => handleScroll(e, setFontSize), options)
 
     return () => {
-      window.removeEventListener('wheel', handleScroll)
+      window.removeEventListener('wheel', (e) => handleScroll(e, setFontSize))
     }
   }, [])
-
-  function handleScroll(event: WheelEvent): void {
-    if (event.ctrlKey) {
-      event.preventDefault() // Prevents the page from zooming
-      setFontSize((oldFontSize) => oldFontSize + Math.sign(event.deltaY) * -1)
-    }
-  }
 
   return (
     <>
@@ -72,7 +58,7 @@ function CodeBox(props: CodeBoxProps): JSX.Element {
             height="100%"
             theme={theme}
             value={codeContent}
-            extensions={[langs.javascript(), FontSizeThemeExtension]}
+            extensions={[langs.javascript(), getFontSizeThemeExt(fontSize), customCommentKey]}
             onChange={(content): void => setCodeContent(content)}
             onFocus={(): void => onFocusChange(true)}
             onBlur={(): void => onFocusChange(false)}

@@ -4,8 +4,8 @@ import { githubLight } from '@uiw/codemirror-theme-github'
 import { langs } from '@uiw/codemirror-extensions-langs'
 import { useEffect, useState } from 'react'
 import beautifier from 'js-beautify'
-import { Extension } from '@codemirror/state'
-import { EditorView } from '@codemirror/view'
+import customCommentKey from '@renderer/functions/codeMirrorCommentExt'
+import { getFontSizeThemeExt, handleScroll } from '@renderer/functions/codeMirrorScrollToZoomExt'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const api: any = window.api
@@ -19,38 +19,21 @@ function ViewOutput(props: ViewOutputProps): JSX.Element {
   const [codeContent, setCodeContent] = useState('')
   const [fontSize, setFontSize] = useState(16)
 
-  const FontSizeTheme = EditorView.theme({
-    '&': {
-      fontSize: `${fontSize}px`
-    }
-  })
-
-  const FontSizeThemeExtension: Extension = [FontSizeTheme]
-
   useEffect(() => {
     getCompiledOutput()
 
     localStorage.darkModeEnabled = false
 
     const options = { passive: false }
-    window.addEventListener('wheel', handleScroll, options)
+    window.addEventListener('wheel', (e) => handleScroll(e, setFontSize), options)
 
     return () => {
-      window.removeEventListener('wheel', handleScroll)
+      window.removeEventListener('wheel', (e) => handleScroll(e, setFontSize))
     }
   }, [])
 
-  function handleScroll(event: WheelEvent): void {
-    if (event.ctrlKey) {
-      event.preventDefault() // Prevents the page from zooming
-      setFontSize((oldFontSize) => oldFontSize + Math.sign(event.deltaY) * -1)
-    }
-  }
-
   async function getCompiledOutput(): Promise<void> {
-    const content = await api.readFile(
-      'C:/Users/William/Documents/GitHub/SudoEditor/temp_compiles/compiled.js'
-    )
+    const content = await api.readFile('./temp_compiles/compiled.js')
     try {
       const formattedCode = beautifier(content, { indent_size: 2 })
       setCodeContent(formattedCode)
@@ -71,7 +54,7 @@ function ViewOutput(props: ViewOutputProps): JSX.Element {
         className="h-full overflow-y-hidden"
         height="100%"
         value={codeContent}
-        extensions={[langs.javascript(), FontSizeThemeExtension, theme]}
+        extensions={[langs.javascript(), getFontSizeThemeExt(fontSize), theme, customCommentKey]}
       />
     </div>
   )
